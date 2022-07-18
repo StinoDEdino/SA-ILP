@@ -91,6 +91,10 @@ if (args.Length >= 1)
     {
         await Tests.TestAllOperatorConfigurations(opts.Instance, solutionDir, opts);
     }
+    else if(opts.Mode == "lastvrpsltt")
+    {
+        await Tests.RunLastVRPSLTTTests(opts.Instance, solutionDir, opts.NumRepeats, opts);
+    }
     else
     {
         Console.WriteLine("Enter correct mode");
