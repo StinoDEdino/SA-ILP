@@ -17,6 +17,7 @@ namespace SA_ILP
             double slope = Math.Asin(heightDiff / length);
             double requiredPow = CalcRequiredForce(speed / 3.6, vehicleMass, slope, wind, td);
             double orignalPow = requiredPow;
+            //length = Math.Sqrt((length * *2) + heightDiff * *2); // This line is needed to account for a longer travel distance when also traveling uphill.
 
             //this part is not necessary and also not correct
             //if (slope <= 0 && wind.L2Norm() == 0)
@@ -42,9 +43,6 @@ namespace SA_ILP
                 {
                     orignalPow = requiredPow;
                 }
-
-
-
             }
             return 0;
         }
@@ -58,6 +56,7 @@ namespace SA_ILP
             double speed = CalculateSpeed(heightDiff, length, vehicleMass, powerInput, wind, td) / 3.6;
 
             //Return travel time in minutes
+            //length = Math.Sqrt((length * *2) + heightDiff * *2); // This line is needed to account for a longer travel distance when also traveling uphill.
             return length / speed / 60;
         }
 
@@ -87,7 +86,6 @@ namespace SA_ILP
             Gamma[,,] distributionMatrix = new Gamma[customers.Count, customers.Count, numLoadLevels];
             IContinuousDistribution[,,] approximationMatrix = new IContinuousDistribution[customers.Count, customers.Count, numLoadLevels];
 
-
             //Create the wind vector
             var V = Vector<double>.Build;
             if (windVec == null)
@@ -95,7 +93,6 @@ namespace SA_ILP
             var wd = V.DenseOfArray(windVec);
             wd = wd.Divide(wd.L2Norm());
             var wind = wd * windSpeed;
-
 
             //Calculate the average latitude and longitude for the projection
             double minLatitude = double.MaxValue;
@@ -144,9 +141,6 @@ namespace SA_ILP
                          double[] custVec = { xDirection, yDirection };
                          var td = V.DenseOfArray(custVec);
                          td = td.Divide(td.L2Norm());
-
-
-
 
 
                          //https://math.stackexchange.com/questions/286391/find-the-component-of-veca-along-vecb
@@ -290,6 +284,7 @@ namespace SA_ILP
                 var ls = new LocalSearch(LocalSearchConfigs.VRPLTTFinal, 0);
                 foreach (var r in custs)
                 {
+                    //public Route(Customer depot, double[,,] distanceMatrix, Gamma[,,] distributionMatrix, IContinuousDistribution[,,] approximationMatrix, double maxCapacity, int seed, LocalSearch parent)
                     var newRoute = new Route(parsed.customers[0], matrix, dists, approx, bikeMaxWeight - bikeMinWeight, 1, ls);
                     foreach (var c in r)
                     {
