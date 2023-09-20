@@ -190,6 +190,7 @@ namespace SA_ILP
         {
             return parent.Config.UseStochasticFunctions;
         }
+        //The exact form of certain functions are declared here
         private void SetFunctions()
         {
             if (UsesStochasticImplementation())
@@ -932,7 +933,7 @@ namespace SA_ILP
             double startTimeLowerBound = 0;
             double startTimeUpperBound = double.MaxValue;
             double arrivalTime = 0;
-            double val = 0;
+            double val = 0; //val acts as a stopwatch
             double l = load;
 
             Customer currentCust;
@@ -942,7 +943,9 @@ namespace SA_ILP
             {
 
                 if (i == ignore)
+                {
                     i++;
+                }
                 currentCust = toOptimizeOver[i];
                 if (currentCust == toRemove)
                 {
@@ -981,13 +984,14 @@ namespace SA_ILP
 
                 l -= currentCust.Demand;
 
+                //Enter only if not the last customer
                 if (i < toOptimizeOver.Count - 1)
                 {
                     nextCust = toOptimizeOver[i + 1];
                     if (nextCust == toRemove)
                         nextCust = toOptimizeOver[i + 2 + skip];
 
-                    //If the next customer is in the position of the new customer, set next to new.
+                    //If the next customer is in the position of the new customer, set next to new. With default settings, these never happen
                     else if (i == pos - 1 && toAdd != null)
                         nextCust = toAdd;
                     else if (i == ignore - 1)
@@ -998,9 +1002,12 @@ namespace SA_ILP
                         nextCust = toOptimizeOver[swapIndex1];
                     else if (i >= reverseIndex1 - 1 && i < reverseIndex2)
                         nextCust = toOptimizeOver[reverseIndex2 - i + reverseIndex1 - 1];
+
+                    //val gets updated by time it takes to go to next customer + service time
                     (var dist, IContinuousDistribution distribution) = CustomerDist(currentCust, nextCust, l, false);
                     val += dist + currentCust.ServiceTime;
 
+                    //if stochastic traveltimes are enabled, a surplus is added.
                     if (parent.Config.UseMeanOfDistributionForTravelTime)
                         val += distribution.Mean;
 
@@ -1021,15 +1028,18 @@ namespace SA_ILP
         }
 
 
-        //Using the function is quite a bit slower than using specifically made functions, but is definatly a possibility.
+        //Using the function is quite a bit slower than using specifically made functions, but is definetly a possibility.
         //It can therefore be used to test new operators for example
         public (bool possible, double improvement, List<double> newArrivalTimes, List<IContinuousDistribution> newDistributions, bool, bool) NewRoutePossible(List<Customer> newRoute, double changedCapacity)
         {
+            //?happens when bike is changed?
             double load = used_capacity + changedCapacity;
-
             if (load > max_capacity)
+            {
                 return (false, double.MinValue, null, null, false, false);
+            }
 
+            //variable declaration
             double arrivalTime = 0;
             double newObjectiveValue = 0;
             bool violatesLowerTimeWindow = false;
@@ -1037,13 +1047,13 @@ namespace SA_ILP
             List<double> newArrivalTimes = new List<double>(newRoute.Capacity) { };
             List<IContinuousDistribution> newDistributions = new List<IContinuousDistribution>(newRoute.Capacity);
 
-
             arrivalTime = OptimizeStartTime(newRoute, load);
 
             //Adding the arrival time for the depot. This is used for setting the start time of the route.
             newArrivalTimes.Add(arrivalTime);
             newDistributions.Add(null);
             IContinuousDistribution total = parent.Config.DefaultDistribution;
+            //this loop catches all violations and then returns a 'false' for 'possible'
             for (int i = 0; i < newRoute.Count - 1; i++)
             {
                 (var dist, IContinuousDistribution distribution) = CustomerDist(newRoute[i], newRoute[i + 1], load, false);
@@ -1281,8 +1291,10 @@ namespace SA_ILP
             return (route[i], this.Score - newObjectiveValue, i);
         }
 
+        //Gets a random customer from selected route and its position in the current route.
         public (Customer?, int) RandomCustIndex()
         {
+            //Making sure the route does actually contain a customer
             if (route.Count == 2)
                 return (null, -1);
 

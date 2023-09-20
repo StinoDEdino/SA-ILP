@@ -183,7 +183,7 @@ namespace SA_ILP
                 return false;
             bool upperViolations = routes.Exists(x => x.ViolatesUpperTimeWindow);
             bool lowerViolations = routes.Exists(x => x.ViolatesLowerTimeWindow);
-
+            //boolean expression which is true when there are no violations, or the occuring violations are allowed.
             return (!upperViolations || Config.AllowLateArrival) && (!lowerViolations || Config.AllowDeterministicEarlyArrival);
         }
 
@@ -192,7 +192,7 @@ namespace SA_ILP
             return (!route.ViolatesUpperTimeWindow || Config.AllowLateArrival) && (!route.ViolatesLowerTimeWindow || Config.AllowDeterministicEarlyArrival);
         }
 
-        //Executes operator and check the score if this check is enabled
+        //??Executes operator and check the score if this check is enabled
         private void RunAndCheckOperator(int id, List<Route> routes, List<Customer> removed, double imp, Action op)
         {
             double expectedVal = 0;

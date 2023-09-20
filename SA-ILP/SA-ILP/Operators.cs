@@ -9,7 +9,7 @@ namespace SA_ILP
 {
     static class Operators
     {
-
+        //Checks whether entries of the list are in increasing order
         private static bool IsOrdered(List<int> list)
         {
             int prev = -1;
@@ -24,10 +24,12 @@ namespace SA_ILP
         {
             //Operator cant be performed if all routes are empty
             if (viableRoutes.Count == 0)
+            {
                 return (double.MinValue, null);
+            }
 
-
-            int bestRoute = -1;
+            //default values
+            int bestRoute = -1; 
             List<Customer>? bestScramble = null;
             List<double>? bestArrivalTimes = null;
             List<IContinuousDistribution>? bestDistributions = null;
@@ -37,15 +39,16 @@ namespace SA_ILP
 
             for (int j = 0; j < 1; j++)
             {
+                //Select a random viable route
                 int routeIndex = viableRoutes[random.Next(viableRoutes.Count)];
 
+                //Returns the customer number and the index in the current route.
                 (_, int index1) = routes[routeIndex].RandomCustIndex();
                 (_, int index2) = routes[routeIndex].RandomCustIndex();
 
-
                 if (index1 != index2)
                 {
-                    //Swap the variables
+                    //Swap the variables, s.t. 1<2 allways
                     if (index2 < index1)
                     {
                         int temp = index1;
@@ -53,20 +56,21 @@ namespace SA_ILP
                         index2 = temp;
                     }
 
+                    //create temperory list of to be scrambled customers
                     List<int> newIndexes = new List<int>();
                     for (int i = index1; i <= index2; i++)
                     {
                         newIndexes.Add(i);
                     }
 
-                    //Might take a lot of time?
+                    //Might take a lot of time? (when scrambling goes wrong time after time?)
                     while (IsOrdered(newIndexes))
                         newIndexes = newIndexes.OrderBy(x => random.Next()).ToList();
 
-
-
+                    //creates a list to represent the postscramble route
                     List<Customer> newRoute = new List<Customer>(routes[routeIndex].route.Capacity);
 
+                    //Set customers equal to original position if outside scramble range; otherwise to postscramble position
                     for (int i = 0; i < routes[routeIndex].route.Count; i++)
                     {
                         Customer cust;
@@ -78,6 +82,7 @@ namespace SA_ILP
                         newRoute.Add(cust);
                     }
 
+                    //gets attributes of the new route
                     (bool possible, double imp, List<double> newArrivalTimes, List<IContinuousDistribution> newDistributions, bool violatesLowerTimeWindow, bool violatesUpperTimeWindow) = routes[routeIndex].NewRoutePossible(newRoute, 0);
 
                     if (possible && imp > bestImp)
