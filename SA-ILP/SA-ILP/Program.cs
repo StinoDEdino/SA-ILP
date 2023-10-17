@@ -34,17 +34,17 @@ if (args.Length >= 1)
 
     String solutionDir = Path.Join(opts.SolutionDir, DateTime.Now.ToString("dd-MM-yy_HH-mm-ss") + opts.TestName);
     String benchDir = Path.Join("Benchmarks", DateTime.Now.ToString("dd-MM-yy_HH-mm-ss") + opts.TestName);
-    if (opts.Mode == "vrpltt")
+    if (opts.Mode == "vrpltt")// does both SA and ILP
     {
         solver.SolveVRPLTTInstance(opts.Instance, numLoadLevels: opts.NumLoadLevels, numIterations: opts.Iterations, timelimit: opts.TimeLimitLS * 1000, bikeMinMass: opts.BikeMinWeight, bikeMaxMass: opts.BikeMaxWeight, inputPower: opts.BikePower);
 
     }
-    else if (opts.Mode == "vrptw")
+    else if (opts.Mode == "vrptw") // Only does SA, NOT ILP
     {
         solver.SolveSolomonInstance(opts.Instance, numIterations: opts.Iterations, timeLimit: opts.TimeLimitLS * 1000);
 
     }
-    else if (opts.Mode == "vrplttmt")
+    else if (opts.Mode == "vrplttmt") 
     {
         await solver.SolveVRPLTTInstanceAsync(opts.Instance, numLoadLevels: opts.NumLoadLevels, numIterations: opts.Iterations, timelimit: opts.TimeLimitLS * 1000, bikeMinMass: opts.BikeMinWeight, bikeMaxMass: opts.BikeMaxWeight, inputPower: opts.BikePower, numStarts: opts.NumStarts, numThreads: opts.NumThreads, config: LocalSearchConfigs.VRPLTTFinal);
     }
@@ -105,7 +105,7 @@ if (args.Length >= 1)
 }
 
 
-//Used to analyze results planned without any wind for al directionss
+//Used to analyze results planned without any wind for al directions
 static void Anaylzyze()
 {
     string baseDir = "../../../../../";
@@ -276,6 +276,7 @@ class Options
 
     [Option("power", Default = 350, HelpText = "Input power.")]
     public int BikePower { get; set; }
+
     [Option("minweight", Default = 140, HelpText = "Min bikeweight in vrpltt.")]
     public int BikeMinWeight { get; set; }
 

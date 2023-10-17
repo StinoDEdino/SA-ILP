@@ -109,8 +109,10 @@ namespace SA_ILP
             List<Task<(HashSet<RouteStore>, List<Route>, double)>> tasks = new List<Task<(HashSet<RouteStore>, List<Route>, double)>>();
             var distanceMatrix = CalculateDistanceMatrix(customers);
             var ls = new LocalSearch(LocalSearchConfigs.VRPTW, random.Next());
+            //colums contains all routes in feasible solutions, sol is the best found solution, value is the value of the best found solution
             (var colums, var sol, var value) = ls.LocalSearchInstance(0, name, numV, capV, customers.ConvertAll(i => new Customer(i)), distanceMatrix, new Gamma[distanceMatrix.GetLength(0), distanceMatrix.GetLength(1), distanceMatrix.GetLength(2)], new Gamma[distanceMatrix.GetLength(0), distanceMatrix.GetLength(1), distanceMatrix.GetLength(2)], numInterations: numIterations, timeLimit: timeLimit);
             foreach (Route route in sol)
+                // IsValedRoute(route) already checked (which only checks time windows)
                 route.CheckRouteValidity();
 
         }
@@ -612,13 +614,15 @@ namespace SA_ILP
         {
             var columList = columns.ToArray();
             var bestSolStore = bestSolutionLS.ConvertAll(x => new RouteStore(x.CreateIdList(), x.Score));
-            byte[,] custInRoute = new byte[customers.Count, columList.Length];
+            byte[,] custInRoute = new byte[customers.Count, columList.Length]; // includes the depot
+            //This loop creates a binary matrix representing whether a customer is in a certain route (column)
             for (int i = 0; i < columList.Length; i++)
             {
+                //loop over each customer in the route corresponding to the current column
                 for (int j = 0; j < columList[i].Route.Count - 1; j++)
                 {
                     custInRoute[columList[i].Route[j], i] = 1;
-                    custInRoute[columList[i].Route[j + 1], i] = 1;
+                    custInRoute[columList[i].Route[j + 1], i] = 1; // WHY? depot already added in first iteration
                 }
             }
 

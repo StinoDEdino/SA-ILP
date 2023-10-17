@@ -17,13 +17,10 @@ namespace SA_ILP
             double slope = Math.Asin(heightDiff / length);
             double requiredPow = CalcRequiredForce(speed / 3.6, vehicleMass, slope, wind, td);
             double orignalPow = requiredPow;
-            //length = Math.Sqrt((length * *2) + heightDiff * *2); // This line is needed to account for a longer travel distance when also traveling uphill.
+            //length = Math.Sqrt((length*length) + heightDiff*heightDiff); // This line is needed to account for a longer travel distance when also traveling uphill.
 
             //this part is not necessary and also not correct
-            //if (slope <= 0 && wind.L2Norm() == 0)
-            //{
-            //    return speed;
-            //}
+            //if (slope <= 0 && wind.L2Norm() == 0){return speed;}
 
             if (powerInput >= requiredPow)
             {
@@ -122,11 +119,13 @@ namespace SA_ILP
                      for (int j = 0; j < customers.Count; j++)
                      {
                          double dist;
+                         //because of symmetry and half the matrix is empty or '0'
                          if (i < j)
                              dist = distanceMatrix[i, j];
                          else
                              dist = distanceMatrix[j, i];
                          double heightDiff = customers[j].Elevation - customers[i].Elevation;
+                         dist = Math.Sqrt(dist * dist + (heightDiff/1000) * (heightDiff/1000));
 
 
                          //Convert the latitute and longitude coordinates of the customers to carthesian coordinates using equirectangular projection
@@ -242,18 +241,18 @@ namespace SA_ILP
         public static double CalcRequiredForce(double v, double mass, double slope, Vector<double> wind, Vector<double> td)
         {
             //Constant for the equations of resistance
-            double Cd = 1.18;
-            double A = 0.83;
-            double Ro = 1.18;
-            double Cr = 0.01;
-            double g = 9.81;
+            double Cd = 1.18; //air drag coefficient
+            double A = 0.83; // frontal area of bike
+            double Ro = 1.18; // air density
+            double Cr = 0.01; //roll resistance coefficient
+            double g = 9.81; // gravitational acceleration
 
             double dragWindSpeed = Math.Pow(v, 2);
 
             if (wind.L1Norm() != 0)
             {
                 //Next line downplays the effect of wind when coming sideways (due to buildings,trees etc.)
-                //if (Math.Abs(Math.Acos(Vector.dot(-td, wind.Normalize()))) >= 15 / 180 * Math.PI) { wind = wind * 0.6 }
+                if ((Math.Abs(Math.Acos(-td[0] * wind.Normalize(2)[0] + -td[1] * wind.Normalize(2)[1]))) >= 15 / 180 * Math.PI) { wind = wind * 0.6; }
 
                 //Apparant wind(actual wind) is the vector sum of true wind and drag wind
                 var actualWind = -td * v + wind;

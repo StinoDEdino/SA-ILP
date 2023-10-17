@@ -1,0 +1,59 @@
+Command line arguments:
+Mode: allvrpltt
+Instance: ..\..\..\..\..\vrpltt_instances\large
+Iterations: 50000000
+NumThreads: 6
+NumStarts: 16
+TimeLimitLS: 480
+TimeLimitILP: 3600
+BikePower: 350
+BikeMinWeight: 140
+BikeMaxWeight: 290
+NumLoadLevels: 10
+NumRepeats: 5
+TestName: 
+SolutionDir: Solutions
+Config: VRPLTTNoGreedyOperators
+
+Config:
+InitialTemperature: 1
+AllowLateArrivalDuringSearch: True
+AllowEarlyArrivalDuringSearch: True
+AllowLateArrival: False
+AllowDeterministicEarlyArrival: True
+BaseRemovedCustomerPenalty: 0.1
+BaseRemovedCustomerPenaltyPow: 2
+BaseEarlyArrivalPenalty: 2
+BaseLateArrivalPenalty: 2
+Alpha: 0.99
+SaveColumnsAfterAllImprovements: True
+PenalizeDeterministicEarlyArrival: False
+PenalizeLateArrival: True
+AdjustDeterministicEarlyArrivalToTWStart: True
+AdjustEarlyArrivalToTWStart: True
+CheckOperatorScores: False
+SaveRoutesBeforeOperator: False
+SaveColumnsAfterWorse: True
+SaveColumnThreshold: 0.2
+PrintExtendedInfo: False
+SaveScoreDevelopment: False
+ExpectedEarlinessPenalty: 0
+ExpectedLatenessPenalty: 0
+UseMeanOfDistributionForTravelTime: False
+ScaleEarlinessPenaltyWithTemperature: True
+ScaleLatenessPenaltyWithTemperature: True
+UseMeanOfDistributionForScore: False
+IgnoreWaitingDuringDistributionAddition: True
+WindSpeed: 0
+WindDirection: (null)
+NumRestarts: 7
+IterationsPerAlphaChange: 10000
+NumIterationsOfNoChangeBeforeRestarting: 600000
+RestartTemperatureBound: 0.02
+DefaultDistribution: (null)
+AllowEarlyArrivalInSimulation: True
+RemovedCustomerTemperaturePow: 2
+CutProbabilityDistributionAt0: False
+UseStochasticFunctions: False
+UseNormalMaximizationForAllSteps: False
+

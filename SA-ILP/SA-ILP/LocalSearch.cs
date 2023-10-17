@@ -22,13 +22,13 @@ namespace SA_ILP
 
         public OperatorSelector OS;
 
+        //local search 'object'
         public LocalSearch(LocalSearchConfiguration config, int seed, OperatorSelector os)
         {
             random = new Random(seed);
             Init(config, seed, os);
             Config = config;
         }
-
 
         private void Init(LocalSearchConfiguration config, int seed, OperatorSelector os)
         {
@@ -144,6 +144,7 @@ namespace SA_ILP
                         seed = null;
 
                 }
+                //Console.WriteLine("Inserted Normaly");
                 //route.InsertCust(next, route.route.Count-1);
 
             }
@@ -168,6 +169,7 @@ namespace SA_ILP
                         }
                     }
                     best.InsertCust(cust, bestPos);
+                    //Console.WriteLine("Inserted Greedily");
                 }
 
             }
@@ -184,6 +186,7 @@ namespace SA_ILP
             bool upperViolations = routes.Exists(x => x.ViolatesUpperTimeWindow);
             bool lowerViolations = routes.Exists(x => x.ViolatesLowerTimeWindow);
             //boolean expression which is true when there are no violations, or the occuring violations are allowed.
+            //Console.WriteLine("Checked validity");
             return (!upperViolations || Config.AllowLateArrival) && (!lowerViolations || Config.AllowDeterministicEarlyArrival);
         }
 
@@ -222,8 +225,9 @@ namespace SA_ILP
             List<Customer> removed = new List<Customer>();
 
 
-            //Generate routes
+            //Generate empty routes
             for (int i = 0; i < numVehicles; i++)
+                //using the first constructor in route.cs
                 routes.Add(new Route(customers[0], distanceMatrix, distributionMatrix, approximationMatrix, vehicleCapacity, seed: random.Next(), this));
 
 
@@ -259,7 +263,7 @@ namespace SA_ILP
             HashSet<RouteStore> Columns = new HashSet<RouteStore>();
 
             //The best found solution so far
-            List<Route> BestSolution = routes.ConvertAll(i => i.CreateDeepCopy());
+            List<Route> BestSolution = routes.ConvertAll(i => i.CreateDeepCopy()); // deep copy ensures changes to original do not change copy
             List<Customer> BestSolutionRemoved = removed.ConvertAll(x => x);
 
             List<(int, double)> SearchScores = new List<(int, double)>();
@@ -294,6 +298,7 @@ namespace SA_ILP
             int numRestarts = 0;
             int previousUpdateIteration = 0;
             int iteration = 0;
+            // performing the actual local search
             for (; iteration < numInterations && timer.ElapsedMilliseconds <= timeLimit; iteration++)
             {
 
@@ -366,7 +371,7 @@ namespace SA_ILP
 
                     }
 
-                    else
+                    else //operator did not make an improvement
                     {
                         double acceptP = Math.Exp(imp / Temperature);
                         totalP += acceptP;
@@ -433,7 +438,7 @@ namespace SA_ILP
                     //Reset the scores
                     currentValue = Solver.CalcTotalDistance(routes, removed, this);
                     bestSolValue = Solver.CalcTotalDistance(BestSolution, new List<Customer>(), this);
-                    Console.WriteLine($"{id}:Best solution changed to long ago a T: {oldTemp}. Restarting from best solution with T: {Temperature}");
+                    Console.WriteLine($"{id}:Best solution changed too long ago a T: {oldTemp}. Restarting from best solution with T: {Temperature}");
                 }
                 else if (Temperature < 0.02 && numRestarts >= Config.NumRestarts)
                     break;
@@ -484,6 +489,9 @@ namespace SA_ILP
                 File.WriteAllLines("BestScores.txt", BestSolutionScores.ConvertAll(x => $"{x.Item1};{x.Item2}"));
                 Console.WriteLine("Done saving scores");
             }
+            Console.WriteLine("Press enter to stop");
+            Console.ReadLine();
+
             return (Columns, BestSolution, Solver.CalcTotalDistance(BestSolution, removed, this));
         }
     }
