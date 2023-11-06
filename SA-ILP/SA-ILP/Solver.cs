@@ -119,6 +119,7 @@ namespace SA_ILP
 
         public async Task<(bool failed, List<Route> ilpSol, double ilpVal, double ilpTime, double lsTime, double lsVal, string solutionJSON)> SolveVRPLTTInstanceAsync(string fileName, int numIterations = 3000000, double bikeMinMass = 140, double bikeMaxMass = 290, int numLoadLevels = 10, double inputPower = 350, int timelimit = 30000, int numThreads = 4, int numStarts = 4, LocalSearchConfiguration? config = null, double ilpTimelimit = 3600)
         {
+            //This function is called to chechk to VRPLTT instances when wind is considered in the simulation
             LocalSearchConfiguration actualConfig;
             if (config == null)
                 actualConfig = LocalSearchConfigs.VRPLTTFinal;
