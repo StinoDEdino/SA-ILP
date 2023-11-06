@@ -543,8 +543,7 @@ namespace SA_ILP
             //The upperbound is inclusive
             if (ll == loadLevel && weight != 0)
                 loadLevel--;
-
-
+                
             var val = objective_matrix[start.Id, finish.Id, loadLevel];
 
             //True distribution is used during simulation, otherwise use the approximation
@@ -1158,18 +1157,10 @@ namespace SA_ILP
                     nextCust = route[i + 1];
                 }
 
-
-
-
-
-
-                //Travel time to new customer
+                //Travel time to new customer would need to change this if we would include tables for wind
                 (double dist, IContinuousDistribution distribution) = CustomerDist(currentCust, nextCust, load, false);
 
-
-
-
-                //Add travel time to total cost
+                //Add travel time to total cost; could be any objective value we want
                 newObjectiveValue += dist;
 
                 //Update arrival time for next customer
