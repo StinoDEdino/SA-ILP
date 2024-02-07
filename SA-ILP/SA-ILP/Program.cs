@@ -21,6 +21,7 @@ if (args.Length >= 1)
     //string mode = args[0];
     //string instance = args[1];
     //int timeLimit = 60;
+    Console.WriteLine("Started!");
     Options? opts = null;
 
     Parser.Default.ParseArguments<Options>(args)
@@ -104,7 +105,6 @@ if (args.Length >= 1)
     return;
 }
 
-
 //Used to analyze results planned without any wind for al directions
 static void Anaylzyze()
 {
@@ -167,6 +167,7 @@ static void Anaylzyze()
 
                 Console.WriteLine("Calculating travel time matrix");
                 (double[,,] matrix, Gamma[,,] distributionMatrix, IContinuousDistribution[,,] approximationMatrix, _) = VRPLTT.CalculateLoadDependentTimeMatrix(customers, distances, 140, 290, 10, 350, tempConfig.WindSpeed, tempConfig.WindDirection, tempConfig.DefaultDistribution is Normal);
+               // this line triggers the local search
                 LocalSearch ls = new LocalSearch(tempConfig, 1);
                 double total = 0;
                 ;
@@ -184,8 +185,6 @@ static void Anaylzyze()
             }
             //cycleSpeedWithWind = total;
             csvwriter.WriteLine($"{Path.GetFileNameWithoutExtension(instance)};{windresult1};{windresult2};{windresult3};{windresult4};{resulst[0]};{resulst[1]};{resulst[2]};{resulst[3]};{results2[0]};{results2[1]};{results2[2]};{results2[3]}");
-
-
         }
     }
 

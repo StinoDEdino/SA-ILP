@@ -47,11 +47,12 @@ namespace SA_ILP
         public List<Customer> route;
         public List<double> arrival_times;
         public List<IContinuousDistribution> customerDistributions;
-        public readonly double[,,] objective_matrix;
+        public readonly double[,,] objective_matrix; //is this the distances??
+
+        public readonly double[,,,] observationsMatrix;
         public readonly Gamma[,,] distributionMatrix;
         public readonly IContinuousDistribution[,,] distributionApproximationMatrix;
         public double startTime = 0;
-
         public int numLoadLevels;
         public int numX;
         public int numY;
@@ -94,10 +95,7 @@ namespace SA_ILP
         private double CachedObjective;
         private Dictionary<int, (int, double)> BestCustomerPos;
         private Dictionary<(int, int), (bool, bool, double)> CustPossibleAtPosCache;
-
         private Random random;
-
-
         public Func<Customer, Customer, double, bool, (double, IContinuousDistribution)> CustomerDist;
         public Func<IContinuousDistribution, IContinuousDistribution, double, IContinuousDistribution> AddDistributions;
         public Func<IContinuousDistribution, Customer, double, double> CalculateUncertaintyPenaltyTerm;
@@ -125,7 +123,6 @@ namespace SA_ILP
             //Functions are seperated for with and without distributions. This optimes the results without the need of different branches
             SetFunctions();
         }
-
 
         public override string ToString()
         {
@@ -269,9 +266,7 @@ namespace SA_ILP
                 toEarlyP = 0;
 
             double res = toLateP * parent.Config.ExpectedLatenessPenalty + toEarlyP * parent.Config.ExpectedEarlinessPenalty;
-
-
-
+            
             return res;
         }
 
@@ -322,15 +317,12 @@ namespace SA_ILP
 
                         if (parent.Config.AdjustEarlyArrivalToTWStart)
                         {
-
                             totalWaitingTime += route[i + 1].TWStart - arrivalTime;
                             arrivalTime = route[i + 1].TWStart;
-
                         }
 
                     }
                     timesTotal++;
-
                 }
             }
 
@@ -340,8 +332,9 @@ namespace SA_ILP
         }
 
 
-
+        
         private Gamma AddGammaDistributions(Gamma left, Gamma right, double diffWithLowerTimeWindow = -1)
+        //adding two gamma distributions to a new one
         {
             if (parent.Config.IgnoreWaitingDuringDistributionAddition)
                 return new Gamma(left.Shape + right.Shape, right.Rate);
@@ -484,14 +477,60 @@ namespace SA_ILP
         }
 
         //Calculate the total objective value of this route
-        public double CalcObjective()
+        public void loadObservationData(fileName)
+        {
+            Console.WriteLine("Reading textfile");
+        StreamReader Textfile = new StreamReader(fileName);
+        string line="";
+        try
+        {
+            line = Textfile.ReadLine();
+        }
+        catch (System.Exception e)
         {
 
-
+            Console.WriteLine(e.Message);
+            Console.WriteLine("Text file might be empty")
+        }
+            string[] variables = new string[3];
+            variables = line.Split(",");
+            int nrCust = int.Parse(variables[0]);
+            int nrLoadlevels = int.Parse(variables[1]);
+            int nrObservations = int.Parse(variables[2]);
+            
+            string row = Textfile.ReadLine();
+            int rowCounter = 0;
+            int columnCounter = 0;
+            double[,,,] travelTimeMatrix = new double[nrCust,nrCust,nrLoadlevels,nrObservations];
+            
+            while(row != null){
+                columnCounter = 0;
+                foreach(string number in row.Split(",")){
+                    int a = rowCounter/nrCust;
+                    int b = rowCounter%nrCust;
+                    int c = columnCounter/nrObservations;
+                    int d = columnCounter%nrObservations;
+                    try
+                    {
+                        travelTimeMatrix[a,b,c,d] = double.Parse(number,System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                    catch (System.Exception e)
+                    {
+                        Console.WriteLine("FAILED to assign observation value to matrix");
+                    }
+                    columnCounter ++;
+                }
+                rowCounter++;
+                row = Textfile.ReadLine();       
+            }
+            this.observationsMatrix = travelTimeMatrix;   
+        }
+        
+        public double CalcObjective()
+        {
             double totalObjectiveValue = 0;
             double totalWeight = used_capacity;
             double arrivalTime = startTime;
-
 
             IContinuousDistribution total = parent.Config.DefaultDistribution;
             for (int i = 0; i < route.Count - 1; i++)
@@ -534,6 +573,67 @@ namespace SA_ILP
             CachedObjective = totalObjectiveValue;
             return totalObjectiveValue;
         }
+
+        public double KDECalcObjective(double[] gamma = [1,1])
+        {
+            double objectiveValue = 0;
+            double expectedTotalWaitingTime = 0;
+            double expectedTotalTravelTime = 0;
+            double expectedTotalTardiness = 0 ;
+            double expectedLateFraction = 0;
+
+            int nrLoadlevels = observationMatrix.GetLength(2);
+
+            for (int j=0; j < observationMatrix.GetLength(3); j++)
+            {
+                double clock = 0;
+                double clock = OptimizeStartTime(route, load, swapIndex1: index1, swapIndex2: index2);
+                double load = used_capacity;
+                double currentMaxWaiting = 0;
+                double sumTravelTime = 0;
+
+            //go through route to compute new arrival times
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                // select the two customers between we travel
+                Customer currentCust = route[i];
+                Customer nextCust = route[i + 1];
+
+                int loadLevelCurrent = (int)Math.Ceiling(nrLoadlevels * (load - 140) / 150.0) - 1;
+                double travelTimeObservation = observationMatrix[currentCust,nextCust, loadLevelCurrent, j];
+                clock += travelTimeObservation;
+                sumTravelTime += travelTimeObservation;
+
+                //if we arrive before start of time window, i.e. we have to wait
+                if (clock < currentCust.TWStart)
+                {
+                    //?cannot get penalized for arriving early at first customer?
+                    //prob something with starttime optimization
+                    if (i != 1)
+                    {
+                        currentMaxWaiting = max(currentCust.TWStart - sumTravelTime, currentMaxWaiting, 0);
+                    }
+                    if (parent.Config.AdjustDeterministicEarlyArrivalToTWStart)
+                    {
+                        clock = currentCust.TWStart;
+                    }
+                }
+
+                load -= nextCust.Demand;
+                if (clock > nextCust.TWEnd)
+                    if (parent.Config.AllowLateArrivalDuringSearch)
+                        expectedTotalTardiness = clock - nextCust.TWEnd;
+                        expectedLateFraction ++;
+                    else
+                        return (false, double.MinValue);
+
+            }
+            expectedTotalWaitingTime += currentMaxWaiting;
+            }
+            // gamma should be an input that weighs the relative importance of waiting time and tardiness.
+            double[] gamma = [1,1];
+            return (double)(expectedTotalTravelTime + gamma[0] * expectedTotalWaitingTime + gamma[1]* expectedTotalTardiness)/objective_matrix.GetLength(3);
+        }
         public static long numDistCalls = 0;
         public (double deterministicDistance, IContinuousDistribution dist) CustomerDistWithDistributions(Customer start, Customer finish, double weight, bool provide_actualDistribution = false)
         {
@@ -552,7 +652,6 @@ namespace SA_ILP
             else
                 return (val, distributionApproximationMatrix[start.Id, finish.Id, loadLevel]);
         }
-
 
         //Distance function without stochastic parts
         public (double deterministicDistance, IContinuousDistribution dist) CustomerDistNoDistributions(Customer start, Customer finish, double weight, bool provide_actualDistribution = false)
@@ -662,8 +761,10 @@ namespace SA_ILP
 
             IContinuousDistribution total = parent.Config.DefaultDistribution;
 
+            //go through route to compute new arrival times
             for (int i = 0; i < route.Count - 1; i++)
             {
+                // select the two customers between we travel
                 Customer currentCust;
                 Customer nextCust;
                 if (i == index1 - 1)
@@ -680,9 +781,11 @@ namespace SA_ILP
                 else
                     currentCust = route[i];
 
-
+                //if we arrive before start of time window, i.e. we have to wait
                 if (arrival_time < currentCust.TWStart)
                 {
+                    //?cannot get penalized for arriving early at first customer?
+                    //prob something with starttime optimization
                     if (i != 1)
                     {
                         objectiveValue += CalculateEarlyPenaltyTerm(arrival_time, currentCust.TWStart);
@@ -695,19 +798,23 @@ namespace SA_ILP
                         arrival_time = currentCust.TWStart;
                     }
                 }
+                // returns derterministic travel time and (possibly) a distribution matrix 
                 (var dist, IContinuousDistribution distribution) = CustomerDist(currentCust, nextCust, load, false);
-
 
                 load -= nextCust.Demand;
                 objectiveValue += dist;
                 arrival_time += dist + currentCust.ServiceTime;
+                // total is the distribution after addition with distribution for the current edge
+                // the deterministic arrival time is needed to check whether previous ditribution has collapsed to a single value
                 total = AddDistributions(total, distribution, nextCust.TWStart - arrival_time);
+                // add some extra time (the mean) if configured
                 if (parent.Config.UseMeanOfDistributionForTravelTime)
                     arrival_time += distribution.Mean;
                 if (parent.Config.UseMeanOfDistributionForScore)
                     objectiveValue += distribution.Mean;
 
                 objectiveValue += CalculateUncertaintyPenaltyTerm(total, nextCust, arrival_time);
+
                 if (arrival_time > nextCust.TWEnd)
                     if (parent.Config.AllowLateArrivalDuringSearch)
                         objectiveValue += CalculateLatePenaltyTerm(arrival_time, nextCust.TWEnd);
@@ -720,7 +827,126 @@ namespace SA_ILP
             return (true, objectiveValue - this.Score);
         }
 
+        public double objectiveFunctionValue1(double[,,,] observationsMatrix, int[] customerIDs, double[] TWearly, double[] TWlate, int[] loadlevels, double[] gamma)
+    {
+        double expectedTotalWaitingTime = 0;
+        double expectedTotalTravelTime = 0;
+        double expectedTotalTardiness = 0 ;
+        double expectedLateFraction = 0;
 
+        for (int i =0; i<observationsMatrix.GetLength(3); i++)
+        {
+            double clock = 0;
+            double currentMax = 0;
+            double sumTravelTime = 0;
+
+            int nextCustomerID = 0;
+            for (int j=0; j<customerIDs.GetLength(0)-1; j++)
+            {
+                int currentCustomerID = customerIDs[j];
+                nextCustomerID = customerIDs[j+1];
+                double travelTimeObservation = observationsMatrix[currentCustomerID-1,nextCustomerID-1, loadlevels[j]-1,i];
+
+                clock += travelTimeObservation;
+                sumTravelTime += travelTimeObservation;
+                expectedTotalTravelTime += travelTimeObservation;
+                
+                if (TWearly[j+1]- sumTravelTime > currentMax)
+                {
+                    currentMax = (double)TWearly[j]- sumTravelTime;
+                }
+                if (clock < TWearly[j+1])
+                {
+                    clock = TWearly[j+1];
+                }
+                else if (clock > TWlate[j+1])
+                {
+                    expectedTotalTardiness += clock - TWlate[j+1];
+                    expectedLateFraction += 1;
+                }
+            }
+            expectedTotalTravelTime += observationsMatrix[nextCustomerID-1, 0,0,i];
+            expectedTotalWaitingTime += currentMax;
+        }
+        double objValue = (double)(expectedTotalTravelTime + gamma[0] * expectedTotalWaitingTime + gamma[1] * expectedTotalTardiness)/observationsMatrix.GetLength(3);
+        return objValue;
+    }
+        public (bool possible, double improvement) KDECanSwapInternally(Customer cust1, Customer cust2, int index1, int index2)
+        {
+            double objectiveValue = 0;
+            double expectedTotalWaitingTime = 0;
+            double expectedTotalTravelTime = 0;
+            double expectedTotalTardiness = 0 ;
+            double expectedLateFraction = 0;
+
+            int nrLoadlevels = observationMatrix.GetLength(2);
+
+            for (int j=0; j < observationMatrix.GetLength(3); j++)
+            {
+                double clock = 0;
+                double clock = OptimizeStartTime(route, load, swapIndex1: index1, swapIndex2: index2);
+                double load = used_capacity;
+                double currentMaxWaiting = 0;
+                double sumTravelTime = 0;
+
+            //go through route to compute new arrival times
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                // select the two customers between we travel
+                Customer currentCust;
+                Customer nextCust;
+                if (i == index1 - 1)
+                    nextCust = cust2;
+                else if (i == index2 - 1)
+                    nextCust = cust1;
+                else
+                    nextCust = route[i + 1];
+
+                if (i == index1)
+                    currentCust = cust2;
+                else if (i == index2)
+                    currentCust = cust1;
+                else
+                    currentCust = route[i];
+
+                int loadLevelCurrent = (int)Math.Ceiling(nrLoadlevels * (load - 140) / 150.0) - 1;
+                double travelTimeObservation = observationMatrix[currentCust,nextCust, loadLevelCurrent, j];
+                clock += travelTimeObservation;
+                sumTravelTime += travelTimeObservation;
+
+                //if we arrive before start of time window, i.e. we have to wait
+                if (clock < currentCust.TWStart)
+                {
+                    //?cannot get penalized for arriving early at first customer?
+                    //prob something with starttime optimization
+                    if (i != 1)
+                    {
+                        currentMaxWaiting = max(currentCust.TWStart - sumTravelTime, currentMaxWaiting, 0);
+                    }
+                    if (parent.Config.AdjustDeterministicEarlyArrivalToTWStart)
+                    {
+                        clock = currentCust.TWStart;
+                    }
+                }
+                // returns derterministic travel time and (possibly) a distribution matrix 
+                (var dist, IContinuousDistribution distribution) = CustomerDist(currentCust, nextCust, load, false);
+
+                load -= nextCust.Demand;
+                if (clock > nextCust.TWEnd)
+                    if (parent.Config.AllowLateArrivalDuringSearch)
+                        expectedTotalTardiness = clock - nextCust.TWEnd;
+                        expectedLateFraction ++;
+                    else
+                        return (false, double.MinValue);
+
+            }
+            expectedTotalWaitingTime += currentMaxWaiting;
+            }
+            // gamma should be an input that weighs the relative importance of waiting time and tardiness.
+            double[] gamma = [1,1];
+            double objectiveValue = (expectedTotalTravelTime + gamma[0] * expectedTotalWaitingTime + gamma[1]* expectedTotalTardiness)/objective_matrix.GetLength(3);
+            return (true, objectiveValue - this.Score);
+        }
 
         public (bool possible, bool possibleInLaterPosition, double objectiveIncrease) CustPossibleAtPos(Customer cust, int pos, int skip = 0, int ignore = -1)
         {
@@ -736,8 +962,6 @@ namespace SA_ILP
             if (ignore != -1)
                 load -= route[ignore].Demand;
 
-
-
             //Need to check capacity, otherwise loadlevel claculation fails
             if (load > max_capacity)
             {
@@ -750,7 +974,6 @@ namespace SA_ILP
             double arrivalTime = OptimizeStartTime(route, load, toAdd: cust, pos: pos, skip: skip, ignore: ignore);
             for (int i = 0, actualIndex = 0; i < route.Count; i++, actualIndex++)
             {
-
                 //Arrived at the insert position. Include the new Customer into the check
                 if (i == pos)
                 {

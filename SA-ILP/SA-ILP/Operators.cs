@@ -9,6 +9,8 @@ namespace SA_ILP
 {
     static class Operators
     {
+        // an operator returns the relative improvement of that operator and the action that achieves the improvement
+        // if no improvement can be made, the action is null and the relative improvement is negative
         //Checks whether entries of the list are in increasing order
         private static bool IsOrdered(List<int> list)
         {
@@ -20,6 +22,7 @@ namespace SA_ILP
                     prev = i;
             return true;
         }
+        //scrambles a subroute
         public static (double improvement, Action? performOperator) ScrambleSubRoute(List<Route> routes, List<int> viableRoutes, Random random)
         {
             //Operator cant be performed if all routes are empty
@@ -177,6 +180,7 @@ namespace SA_ILP
         {
             if (viableRoutes.Count == 0)
                 return (double.MinValue, null);
+            //src is a randomly selected route from the viable routes (non empty)
             int src = viableRoutes[random.Next(viableRoutes.Count)];
 
             int bestSrc = -1, bestPos1 = -1, bestPos2 = -1;
@@ -191,13 +195,12 @@ namespace SA_ILP
 
                 if (cust1 != null && cust2 != null && cust1.Id != cust2.Id)
                 {
+                    //add if-statement to chechk for the 'KDE' setting; and use original function if false.
                     (bool possible, double increase1) = routes[src].CanSwapInternally(cust1, cust2, index1, index2);
-                    //possible = possible1;
                     double imp = -increase1;
 
                     if (possible)
                     {
-                        //double imp = -(increase1 + increase2);
                         if (imp > bestImp)
                         {
                             bestImp = imp;
@@ -208,7 +211,6 @@ namespace SA_ILP
                             bestPos2 = index2;
                         }
                     }
-
                 }
             }
 
@@ -216,26 +218,20 @@ namespace SA_ILP
                 return (bestImp, () =>
                 {
                     //Remove old customer and insert new customer in its place
-
                     routes[bestSrc].RemoveCust(bestCust1);
-
-
+                    
                     //Remove old customer and insert new customer in its place
                     routes[bestSrc].RemoveCust(bestCust2);
 
                     if (bestPos2 < bestPos1)
                         bestPos1--;
-
-
+                    
                     routes[bestSrc].InsertCust(bestCust2, bestPos1);
                     routes[bestSrc].InsertCust(bestCust1, bestPos2);
-
-
                 }
                 );
             else
                 return (bestImp, null);
-
         }
 
         //Swaps random customers
@@ -405,7 +401,6 @@ namespace SA_ILP
                     bestVale = val;
                     bestAction = act;
                 }
-
             }
             return (bestVale, bestAction);
         }

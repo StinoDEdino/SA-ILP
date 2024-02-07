@@ -1,4 +1,4 @@
-﻿ using MathNet.Numerics.Distributions;
+﻿using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using System;
 using System.Collections.Generic;
@@ -42,6 +42,47 @@ namespace SA_ILP
                 }
             }
             return 0;
+        }
+
+        private static double CalculateSpeedBinSearch(double heightDiff, double length, double vehicleMass, double powerInput, Vector<double> wind, Vector<double> td)
+        {
+            double tolerance = 1e-5;
+            int maxIterations = 1000;
+            int iteration = 0;
+            double speedLimit = 25;
+            double lowerBound = 0;
+            double midpoint = (double)(speedLimit-lowerBound)/2
+            double slope = Math.Asin(heightDiff / length);
+            double requiredPower = CalcRequiredForce(speedLimit / 3.6, vehicleMass, slope, wind, td);
+            double orignalPower = requiredPower;
+            //length = Math.Sqrt((length*length) + heightDiff*heightDiff); // This line is needed to account for a longer travel distance when also traveling uphill.
+
+            //this part is not necessary and also not correct
+            //if (slope <= 0 && wind.L2Norm() == 0){return speed;}
+
+            if (powerInput >= requiredPow)
+            {
+                // this is now in km/h
+                return speedLimit;
+            }
+            while (speedLimit-lowerBound >= tolerance && iteration < maxIterations)
+            {
+                iteration ++;
+                midpoint = (double)(upperbound+lowerBound)/2
+                if CalcRequiredForce(speedLimit/3.6, vehicleMass, slope, wind, td)< powerInput
+                {
+                    lowerBound = midpoint;
+                }
+                else if CalcRequiredForce(speedLimit/3.6, vehicleMass, slope, wind, td)> powerInput
+                {
+                    speedLimit = midpoint;
+                } else
+                {
+                    return midpoint;
+                }
+                
+            }
+            return (double)(upperbound+lowerBound)/2;
         }
 
         public static double CalculateTravelTime(double heightDiff, double length, double vehicleMass, double powerInput, Vector<double> wind, Vector<double> td)
@@ -127,7 +168,6 @@ namespace SA_ILP
                          double heightDiff = customers[j].Elevation - customers[i].Elevation;
                          dist = Math.Sqrt(dist * dist + (heightDiff/1000) * (heightDiff/1000));
 
-
                          //Convert the latitute and longitude coordinates of the customers to carthesian coordinates using equirectangular projection
                          (double X1, double Y1) = EquirectangularProjection(customers[j].X, customers[j].Y, centralLatitude, centralLongitude);
                          (double X2, double Y2) = EquirectangularProjection(customers[i].X, customers[i].Y, centralLatitude, centralLongitude);
@@ -135,17 +175,14 @@ namespace SA_ILP
                          double xDirection = X1 - X2;
                          double yDirection = Y1 - Y2;
 
-
                          //Create and normalize vector from the indivial values
                          double[] custVec = { xDirection, yDirection };
                          var td = V.DenseOfArray(custVec);
                          td = td.Divide(td.L2Norm());
 
-
                          //https://math.stackexchange.com/questions/286391/find-the-component-of-veca-along-vecb
                          double windComponentAlongTravelDirection = (wd * -td) / td.L2Norm();
                          partOfWindTaken[i, j] = windComponentAlongTravelDirection;
-
 
                          for (int l = 0; l < numLoadLevels; l++)
                          {
@@ -210,7 +247,6 @@ namespace SA_ILP
                     else
                         demand = 0;
 
-
                     if (lineSplit[5] != "")
                         twstart = double.Parse(lineSplit[5], NumberStyles.Any, CultureInfo.InvariantCulture);
                     else
@@ -236,7 +272,6 @@ namespace SA_ILP
 
         }
 
-
         //We don't compute force, we compute required power.
         public static double CalcRequiredForce(double v, double mass, double slope, Vector<double> wind, Vector<double> td)
         {
@@ -252,7 +287,7 @@ namespace SA_ILP
             if (wind.L1Norm() != 0)
             {
                 //Next line downplays the effect of wind when coming sideways (due to buildings,trees etc.)
-                if ((Math.Abs(Math.Acos(-td[0] * wind.Normalize(2)[0] + -td[1] * wind.Normalize(2)[1]))) >= 15 / 180 * Math.PI) { wind = wind * 0.6; }
+                // if ((Math.Abs(Math.Acos(-td[0] * wind.Normalize(2)[0] + -td[1] * wind.Normalize(2)[1]))) >= 15 / 180 * Math.PI) { wind = wind * 0.6; }
 
                 //Apparant wind(actual wind) is the vector sum of true wind and drag wind
                 var actualWind = -td * v + wind;
@@ -273,10 +308,9 @@ namespace SA_ILP
 
         internal static double CalculateWindCyclingTime(string file, double bikeMinWeight, double bikeMaxWeight, int numLoadlevels, double bikePower, double[] windDirection, List<Route> solution, List<List<int>> custs = null)
         {
-            //Calculate the load dependent time matrix with no wind to analyze the mount of time is spend cycling against the wind.
+            //Calculate the load dependent time matrix with no wind to analyze the amount of time is spend cycling against the wind.
             var parsed = VRPLTT.ParseVRPLTTInstance(file);
             (double[,,] matrix, var dists, var approx, double[,] windpart) = VRPLTT.CalculateLoadDependentTimeMatrix(parsed.customers, parsed.distances, bikeMinWeight, bikeMaxWeight, numLoadlevels, bikePower, 0, windDirection);
-
 
             if (custs != null)
             {

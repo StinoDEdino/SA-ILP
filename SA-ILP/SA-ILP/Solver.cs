@@ -18,7 +18,6 @@ namespace SA_ILP
         public List<int> Route { get; private set; }
         public double Value { get; private set; }
 
-
         public RouteStore(List<int> route, double value)
         {
             this.Route = route;
@@ -57,7 +56,6 @@ namespace SA_ILP
             return total;
         }
     }
-
 
     internal class Solver
     {
@@ -99,10 +97,6 @@ namespace SA_ILP
             random = new Random();
         }
 
-
-
-
-
         public void SolveSolomonInstance(string fileName, int numIterations = 3000000, int timeLimit = 30000)
         {
             (string name, int numV, double capV, List<Customer> customers) = SolomonParser.ParseInstance(fileName);
@@ -119,17 +113,12 @@ namespace SA_ILP
 
         public async Task<(bool failed, List<Route> ilpSol, double ilpVal, double ilpTime, double lsTime, double lsVal, string solutionJSON)> SolveVRPLTTInstanceAsync(string fileName, int numIterations = 3000000, double bikeMinMass = 140, double bikeMaxMass = 290, int numLoadLevels = 10, double inputPower = 350, int timelimit = 30000, int numThreads = 4, int numStarts = 4, LocalSearchConfiguration? config = null, double ilpTimelimit = 3600)
         {
-            //This function is called to chechk to VRPLTT instances when wind is considered in the simulation
+            //This function is called to chechk the VRPLTT instances when wind is considered in the simulation
             LocalSearchConfiguration actualConfig;
             if (config == null)
                 actualConfig = LocalSearchConfigs.VRPLTTFinal;
             else
                 actualConfig = (LocalSearchConfiguration)config;
-
-
-
-
-
 
             (double[,] distances, List<Customer> customers) = VRPLTT.ParseVRPLTTInstance(fileName);
             Stopwatch w = new Stopwatch();
@@ -138,8 +127,7 @@ namespace SA_ILP
             (double[,,] matrix, Gamma[,,] distributionMatrix, IContinuousDistribution[,,] approximationMatrix, _) = VRPLTT.CalculateLoadDependentTimeMatrix(customers, distances, bikeMinMass, bikeMaxMass, numLoadLevels, inputPower, ((LocalSearchConfiguration)actualConfig).WindSpeed, ((LocalSearchConfiguration)actualConfig).WindDirection, actualConfig.DefaultDistribution is Normal);
             Console.WriteLine($"Created distance matrix in {((double)w.ElapsedMilliseconds / 1000).ToString("0.00")}s");
 
-
-
+//calls another function to do the solving
             (List<RouteStore> ilpSol, double ilpVal, double ilpTime, double lsTime, double lsVal, string solutionJSON) = await SolveInstanceAsync("", customers.Count, bikeMaxMass - bikeMinMass, customers, matrix, distributionMatrix, approximationMatrix, numThreads, numStarts, numIterations, (LocalSearchConfiguration)config, timeLimit: timelimit, ilpTimelimit: ilpTimelimit);
 
             double totalWaitingTime = 0;
@@ -156,6 +144,7 @@ namespace SA_ILP
                 foreach (RouteStore rs in ilpSol)
                 {
                     var ls = new LocalSearch(actualConfig, random.Next());
+                    //r is a route that is 'created' from the routeStore datatype
                     Route r = new Route(customers, rs, customers[0], matrix, distributionMatrix, approximationMatrix, bikeMaxMass - bikeMinMass, ls);
                     Solution.Add(r);
                     sw.WriteLine($"{r},");
@@ -200,17 +189,18 @@ namespace SA_ILP
         }
 
         public double SolveVRPLTTInstance(string fileName, int numIterations = 3000000, double bikeMinMass = 150, double bikeMaxMass = 350, int numLoadLevels = 10, double inputPower = 400, int timelimit = 30000, LocalSearchConfiguration? config = null)
+        //This is the 'standard' function being called 
         {
-
             if (config == null)
                 config = LocalSearchConfigs.VRPLTTDebug;
 
             (double[,] distances, List<Customer> customers) = VRPLTT.ParseVRPLTTInstance(fileName);
 
-
-
+            // in the next line a function is called that returns the matrices for the traveltime
             (double[,,] matrix, Gamma[,,] distributionMatrix, IContinuousDistribution[,,] approximationMatrix, _) = VRPLTT.CalculateLoadDependentTimeMatrix(customers, distances, bikeMinMass, bikeMaxMass, numLoadLevels, inputPower, ((LocalSearchConfiguration)config).WindSpeed, ((LocalSearchConfiguration)config).WindDirection, ((LocalSearchConfiguration)config).DefaultDistribution is Normal);
+            
             var ls = new LocalSearch((LocalSearchConfiguration)config, random.Next());
+            // this function calls the loop that does the local search
             (var colums, var sol, var value) = ls.LocalSearchInstance(0, "", customers.Count, bikeMaxMass - bikeMinMass, customers.ConvertAll(i => new Customer(i)), matrix, distributionMatrix, approximationMatrix, numInterations: numIterations, checkInitialSolution: false, timeLimit: timelimit);
 
             double totalDist = 0;
@@ -220,8 +210,6 @@ namespace SA_ILP
 
             var simStopWatch = new Stopwatch();
             simStopWatch.Start();
-
-
 
             if (((LocalSearchConfiguration)config).UseStochasticFunctions)
             {
@@ -408,9 +396,6 @@ namespace SA_ILP
                     cnt += columns.Count;
                 }
             }
-
-
-
             watch.Stop();
             Console.WriteLine();
             Console.WriteLine($" Sum of unique columns found per start: {cnt}");
@@ -421,20 +406,17 @@ namespace SA_ILP
 
         public async Task<(List<RouteStore> ilpSol, double ilpVal, double ilpTime, double lsTime, double lsVal, string solutionJSON)> SolveInstanceAsync(string name, int numV, double capV, List<Customer> customers, double[,,] distanceMatrix, Gamma[,,] distributionMatrix, IContinuousDistribution[,,] approximationMatrix, int numThreads, int numStarts, int numIterations, LocalSearchConfiguration configuration, int timeLimit = 30000, double ilpTimelimit = 3600)
         {
+            // this function has two stages, the SA stage and the iLP stage
             (var allColumns, var bestSolution, var LSTime, var LSSCore) = await LocalSearchInstancAsync(name, numV, capV, customers, distanceMatrix, distributionMatrix, approximationMatrix, numThreads, numStarts, numIterations, timeLimit, configuration);
             PrintRoutes(bestSolution);
             (var ilpSol, double ilpVal, double time, string solutionJSON) = SolveILP(allColumns, customers, numV, bestSolution, ilpTimelimit);
 
-
             return (ilpSol, ilpVal, time, LSTime, LSSCore, solutionJSON);
 
         }
-
         //Implements the VRPLTT ILP model to check the quality of the routes provided by the local search
         private void CheckRouteQualityVRPLTT(List<Route> routes, double[,,] distanceMatrix, double maxLoad)
         {
-
-
             foreach (var route in routes)
             {
                 if (route.route.Count == 2)

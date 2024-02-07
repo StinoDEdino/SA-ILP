@@ -37,6 +37,7 @@ namespace SA_ILP
         }
 
         public LocalSearch(LocalSearchConfiguration config, int seed)
+        //this function is called in 'program.cs'
         {
             random = new Random(seed);
 
@@ -85,7 +86,6 @@ namespace SA_ILP
 
             Customer? seed = customers.MinBy(x => x.TWEnd);//customers[0];
 
-
             List<Customer> inserted = new List<Customer>();
 
             foreach (Route route in routes)
@@ -108,13 +108,10 @@ namespace SA_ILP
                         arrivalTime = seed.TWStart;
                     arrivalTime += +seed.ServiceTime;
 
-
-
-
-
                     //Select the next customer by minimizing costs (with a random factor)
                     Customer? next = customers.MinBy(x =>
                     {
+                        
                         (double dist, IContinuousDistribution distribution) = route.CustomerDist(seed, x, route.max_capacity, false);
 
                         if (arrivalTime + dist < x.TWEnd)
@@ -206,7 +203,6 @@ namespace SA_ILP
             {
                 beforeCopy = routes.ConvertAll(i => i.CreateDeepCopy());
             }
-
             op();
             if (Config.CheckOperatorScores)
                 if (Math.Round(Solver.CalcTotalDistance(routes, removed, this), 6) != Math.Round(expectedVal, 6))
@@ -218,18 +214,16 @@ namespace SA_ILP
         {
             Console.WriteLine("Starting local search");
 
-
             EasyShuffle(customers, random);
 
+            // this list of routes consitutes the 'current solution' 
             List<Route> routes = new List<Route>();
             List<Customer> removed = new List<Customer>();
-
 
             //Generate empty routes
             for (int i = 0; i < numVehicles; i++)
                 //using the first constructor in route.cs
                 routes.Add(new Route(customers[0], distanceMatrix, distributionMatrix, approximationMatrix, vehicleCapacity, seed: random.Next(), this));
-
 
             CreateSmartInitialSolution(routes, customers, removed);
             //CreateStupidInitialSolution(routes, customers, removed);
@@ -269,7 +263,6 @@ namespace SA_ILP
             List<(int, double)> SearchScores = new List<(int, double)>();
             List<(int, double)> BestSolutionScores = new List<(int, double)>();
 
-
             //Dictionaries used for tracking the performance of the different operators. These are only used if the option is enabled in the configuration
             Dictionary<string, int> OPImprovementCount = new Dictionary<string, int>();
             Dictionary<string, double> OPImprovementTotal = new Dictionary<string, double>();
@@ -289,8 +282,6 @@ namespace SA_ILP
                 OPNotPossible[op] = 0;
             }
 
-
-
             double bestSolValue = Solver.CalcTotalDistance(BestSolution, removed, this);
             double currentValue = bestSolValue;
             int bestImprovedIteration = 0;
@@ -301,7 +292,6 @@ namespace SA_ILP
             // performing the actual local search
             for (; iteration < numInterations && timer.ElapsedMilliseconds <= timeLimit; iteration++)
             {
-
                 double imp = 0;
                 Action? act = null;
                 var nextOperator = OS.Next();
@@ -311,17 +301,17 @@ namespace SA_ILP
                 {
                     if (currentValue > double.MaxValue - 1000000)
                         Console.WriteLine("OVERFLOW");
+                    
                     //Accept all improvements
                     if (imp > 0)
                     {
-
                         OPImprovementCount[OS.LastOperator] += 1;
                         OPImprovementTotal[OS.LastOperator] += imp;
 
                         if (imp > OPBestImprovement[OS.LastOperator])
                             OPBestImprovement[OS.LastOperator] = imp;
 
-                        //Apply the changes of the neighbor
+                        //Apply the changes of the neighbor: this updates the route and the current score and also checks whether the improvement corresponds with the new value
                         RunAndCheckOperator(id, routes, removed, imp, act);
 
                         //Update viable routes cache
@@ -351,24 +341,17 @@ namespace SA_ILP
                             {
                                 if (IsValidRoute(route))
                                     Columns.Add(new RouteStore(route.CreateIdList(), route.Score));
-
                             }
-
                         }
-
                         //Add columns to the column store
                         if (Config.SaveColumnsAfterAllImprovements && Temperature < Config.InitialTemperature * Config.SaveColumnThreshold)
                             foreach (Route route in routes)
                             {
                                 if (IsValidRoute(route))
                                     Columns.Add(new RouteStore(route.CreateIdList(), route.Score));
-
                             }
-
-
                         amtImp += 1;
                         lastChangeAcceptedOnIt = iteration;
-
                     }
 
                     else //operator did not make an improvement
